@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Model Upload and AR View</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/aframevr/aframe@v1.2.0/dist/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-touch-controls@0.2.0/dist/aframe-touch-controls.min.js"></script>
+    <style>
+        #model-list div {
+            margin-bottom: 10px;
+        }
+        #controls {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="model-upload" accept=".glb,.gltf">
+    <div id="model-list"></div>
+    <div id="model-container"></div>
+
+    <script>
+        document.getElementById('model-upload').addEventListener('change', handleFileUpload);
+
+        let uploadedModels = []; // Array to store uploaded models
+        let currentEntity = null; // Reference to the current model entity
+
+        // Function to handle file upload
+        function handleFileUpload(event) {
+            const file = event.target.files[0]; // Get the uploaded file
+            if (file) {
+                if (!file.name.match(/\.(glb|gltf)$/)) {
+                    alert('Please upload a .glb or .gltf file');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const modelURL = e.target.result; // Store the uploaded model's URL
+                    uploadedModels.push(modelURL); // Add model to the list
+                    console.log('Model uploaded:', modelURL);
+                    displayModelList(); // Update the list of models
+                };
+                reader.readAsDataURL(file); // Read the file as a data URL
+            }
+        }
+
+        // Function to display the list of uploaded models
+        function displayModelList() {
+            const modelList = document.getElementById('model-list');
+            modelList.innerHTML = ''; // Clear previous list
+            uploadedModels.forEach((url, index) => {
+                const modelItem = document.createElement('div');
+                modelItem.innerHTML = `
+                    <span>Model ${index + 1}</span>
+                    <button onclick="previewModel('${url}')">Preview</button>
+                    <button onclick="viewInAR('${url}')">View in AR</button>
+                `;
+                modelList.appendChild(modelItem);
+            });
+        }
+
+        // Function to preview the uploaded model in a 3D scene
+        function previewModel(url) {
+            console.log('Previewing model:', url);
+
+            const container = document.getElementById('model-container');
+            container.innerHTML = ''; // Clear previous content
+
+            const scene = document.createElement('a-scene'); // Create an A-Frame scene
+            scene.setAttribute('embedded', ''); // Embed the scene in the page
+
+            const camera = document.createElement('a-entity');
+            camera.setAttribute('camera', ''); // Add camera to the scene
+            camera.setAttribute('position', '0 1.6 3'); // Adjust camera position
+            scene.appendChild(camera); // Add camera to the scene
+
+            const light = document.createElement('a-light');
+            light.setAttribute('type', 'directional');
+            light.setAttribute('intensity', '1');
+            light.setAttribute('position', '0 4 4');
+            scene.appendChild(light);
+
+            const entity = document.createElement('a-entity');
+            entity.setAttribute('gltf-model', url); // Set the model URL
+            entity.setAttribute('position', '0 0 0'); // Initial position at ground level
+            entity.setAttribute('scale', '0.5 0.5 0.5'); // Initial scale
+
+            entity.addEventListener('model-loaded', () => {
+                console.log('Model loaded successfully');
+                currentEntity = entity; // Update current entity reference
+            });
+
+            entity.addEventListener('model-error', (error) => {
+                console.error('Model loading error:', error);
+                alert('Error loading model. Please try again with a valid .glb or .gltf file.');
+            });
+
+            scene.appendChild(entity); // Add the model to the scene
+            container.appendChild(scene); // Add the scene to the container
+        }
+
+        // Function to view the uploaded model in AR mode using WebXR
+        function viewInAR(url) {
+            console.log('Viewing model in AR:', url);
+
+            const container = document.getElementById('model-container');
+            container.innerHTML = ''; // Clear previous content
+
+            const scene = document.createElement('a-scene');
+            scene.setAttribute('embedded', ''); // Embed the scene in the page
+            scene.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false;'); // Enable AR mode with webcam
+
+            const camera = document.createElement('a-entity');
+            camera.setAttribute('camera', ''); // Add camera to the scene
+            camera.setAttribute('position', '0 1.6 3'); // Adjust camera position
+            scene.appendChild(camera); // Add camera to the scene
+
+            const entity = document.createElement('a-entity');
+            entity.setAttribute('gltf-model', url); // Set the model URL
+            entity.setAttribute('position', '0 0 0'); // Initial position at ground level
+            entity.setAttribute('scale', '0.5 0.5 0.5'); // Initial scale
+            entity.setAttribute('touch-controls', ''); // Enable touch controls for pinch-to-zoom
+
+            entity.addEventListener('model-loaded', () => {
+                console.log('Model loaded successfully in AR');
+                currentEntity = entity; // Update current entity reference
+            });
+
+            entity.addEventListener('model-error', (error) => {
+                console.error('Model loading error in AR:', error);
+                alert('Error loading model. Please try again with a valid .glb or .gltf file.');
+            });
+
+            scene.appendChild(entity); // Add the model to the scene
+            container.appendChild(scene); // Add the scene to the container
+        }
+
+        // Function to zoom in or out on the model
+        function zoomModel(direction) {
+            if (currentEntity) {
+                const currentScale = currentEntity.getAttribute('scale');
+                let newScale;
+                if (direction === 'in') {
+                    newScale = {
+                        x: currentScale.x * 1.1,
+                        y: currentScale.y * 1.1,
+                        z: currentScale.z * 1.1
+                    };
+                } else if (direction === 'out') {
+                    newScale = {
+                        x: currentScale.x / 1.1,
+                        y: currentScale.y / 1.1,
+                        z: currentScale.z / 1.1
+                    };
+                }
+                currentEntity.setAttribute('scale', newScale);
+                console.log(`Zoom ${direction}:`, newScale);
+            } else {
+                alert('No model is currently loaded');
+            }
+        }
+    </script>
+</body>
+</html>
